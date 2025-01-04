@@ -11,13 +11,20 @@
     dimensiune: .space 4
     nrAdd: .space 4
 
+    # cerinta GET
+    formatPrintfGETFail : .asciz "(0, 0)\n"
+    formatPrintfGET: .asciz "(%d, %d)\n"
+    startInterval: .space 4
+    sfInterval: .space 4
+
+
 .text
 
 .global main
 
 main:
      # golim vectorul <-> initializam cu 0
-   lea v, %edi
+    lea v, %edi
     mov $0, %eax
     xor %ecx, %ecx
 et_vector:
@@ -52,6 +59,125 @@ loop:
     cmp $1, cerinta
     je et_start_add
 
+   cmp $2, %eax
+    je et_start_get
+
+# ----------------- GET -----------------
+
+et_start_get:
+    lea descriptor, %eax
+    push %eax
+    push $formatScanf
+    call scanf
+    add $8, %esp
+
+    mov descriptor, %eax
+    push %eax
+    call get_inceput
+    add $4, %esp
+
+    cmp $-1, %eax
+    je et_afisare_esuata_get
+    
+    mov %eax, startInterval
+
+    push %eax # start interval
+    mov descriptor, %eax
+    push %eax # descriptor 
+
+    call get_end
+    add $4, %esp
+
+    cmp $-1, %eax
+    je et_afisare_esuata_get
+
+    mov %eax, sfInterval
+    jne et_afisare_get
+
+et_afisare_esuata_get:
+    push $formatPrintfGETFail
+    call printf
+    add $4, %esp
+    jmp loop
+
+et_afisare_get:
+    push sfInterval
+    push startInterval
+    push $formatPrintfGET
+    call printf
+    add $12, %esp
+    jmp loop
+# caut unde incepe descriptorul
+get_inceput:
+    push %ebp
+    mov %esp, %ebp
+    push %ebx
+    push %ecx
+    push %edi
+    mov 8(%ebp), %eax # descriptor ul pe care il caut
+    xor %ecx, %ecx
+    xor %edx, %edx
+
+start_cautare_inceput:
+    cmp $1024, %ecx
+    je get_inceput_esuat
+
+    mov (%edi, %ecx, 4), %edx
+    cmp %eax, %edx
+    je gasit_inceput
+    inc %ecx
+    jmp start_cautare_inceput
+
+gasit_inceput:
+    mov %ecx, %eax
+    pop %edi
+    pop %ecx
+    pop %ebx
+    pop %ebp
+    ret
+
+get_inceput_esuat:
+    mov $-1, %eax
+    pop %edi
+    pop %ecx
+    pop %ebx
+    pop %ebp
+    ret
+
+
+
+# caut dimensiunea
+
+get_end:
+    push %ebp
+    mov %esp, %ebp
+    push %ebx
+    push %ecx
+    push %edi
+    mov 8(%ebp), %eax # descriptor ul pe care il caut
+    mov 12(%ebp), %ebx # inceputul intervalului
+    mov %ebx, %ecx
+    xor %edx, %edx
+
+# caut unde se termina incepand cu inceputul intervalului si apoi returnez indexul final
+start_cautare_sf:
+    cmp $1024, %ecx
+    je ret_sf
+    mov (%edi, %ecx, 4), %edx
+    cmp %eax, %edx
+    jne ret_sf
+    inc %ecx
+    jmp start_cautare_sf
+
+# returnez indexul final
+ret_sf:
+    dec %ecx
+    mov %ecx, %eax
+    pop %edi
+    pop %ecx
+    pop %ebx
+    pop %ebp
+    ret    
 et_start_add:
     lea nrAdd, %eax
     push %eax
@@ -59,6 +185,7 @@ et_start_add:
     call scanf
     add $8, %esp
     
+# ----------------- ADD -----------------
 et_loop_add:
 
     cmp $0, nrAdd
