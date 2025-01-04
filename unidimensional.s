@@ -17,6 +17,15 @@
     startInterval: .space 4
     sfInterval: .space 4
 
+    # procedura afisare_memorie
+    descriptorMemorie: .space 4
+    startDescriptorMemorie: .space 4
+    sfDescriptorMemorie: .space 4
+    formatPrintfMemorie: .asciz "%d: (%d, %d)\n"
+    formatLaMisto:  .asciz "%d\n"
+    contorLaMisto: .space 4
+    # cerinta DELETE
+
 
 .text
 
@@ -27,6 +36,8 @@ main:
     lea v, %edi
     mov $0, %eax
     xor %ecx, %ecx
+
+    # intializarea array ului cu 0
 et_vector:
     cmp $1024, %ecx
     je et_start
@@ -43,6 +54,8 @@ et_start:
     call scanf
     add $8, %esp
 
+
+# loop pentru cerintele din input
 loop:
     mov nrCerinte, %eax
     cmp $0, %eax
@@ -62,6 +75,81 @@ loop:
    cmp $2, %eax
     je et_start_get
 
+    cmp $3, %eax
+    je et_start_delete
+
+# ----------------- PROCEDURA AFISARE MEMORIE -----------------
+
+afisare_memorie:
+    push %ebp
+    mov %esp, %ebp
+    push %ebx
+    push %ecx
+    push %edi
+    xor %ecx, %ecx
+    xor %edx, %edx
+    lea v, %edi
+    mov $0, %ebx
+ret_afisare_memorie:
+    pop %edi
+    pop %ecx
+    pop %ebx
+    pop %ebp
+    ret
+
+# ----------------- DELETE -----------------
+
+et_start_delete:
+    lea descriptor, %eax
+    push %eax
+    push $formatScanf
+    call scanf
+    add $8, %esp
+
+    mov descriptor, %eax
+    push %eax
+    call delete
+    add $4, %esp
+
+    call afisare_memorie
+    jmp loop
+
+
+
+
+delete:
+    push %ebp
+    mov %esp, %ebp
+    push %ebx
+    push %ecx
+    push %edi
+    mov 8(%ebp), %eax # descriptor ul pe care il caut
+    xor %ecx, %ecx
+    xor %edx, %edx
+
+start_cautare_delete:
+    cmp $1024, %ecx
+    je ret_delete
+    mov (%edi, %ecx, 4), %edx
+    cmp %eax, %edx
+    je gasit_delete
+
+    inc %ecx
+    jmp start_cautare_delete
+gasit_delete:
+    mov $0, %edx
+    mov %edx, (%edi, %ecx, 4)
+
+    inc %ecx
+    jmp start_cautare_delete
+
+ret_delete:
+    mov $1, %eax
+    pop %edi
+    pop %ecx
+    pop %ebx
+    pop %ebp
+    ret
 # ----------------- GET -----------------
 
 et_start_get:
@@ -325,6 +413,7 @@ alocare_esuata:
 
 
 et_exit:
+    add $4, %esp
     pushl $0
     call fflush
     popl %eax
