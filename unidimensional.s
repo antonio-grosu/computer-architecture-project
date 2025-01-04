@@ -1,29 +1,35 @@
+
 .data
-    v : .space 4096 # retinem 1024 * 4 btes
-    formatScanf  : .asciz "%d"
-    cerinta : .space 4
-    nrCerinte : .space 4
-
+    v: .space 4096 # retinem 1024 * 4 bytes
+    formatScanf: .asciz "%d"
+    cerinta: .space 4
+    nrCerinte: .space 4
     # cerinta ADD
-    formatPrintfADD : .asciz "%d: (%d, %d)\n"
-    formatPrintfADDFail : .asciz "%d: (0, 0)\n"
-    descriptor : .space 4
-    dimensiune : .space 4
-    nrAdd : .space 4
-
+    formatPrintfADD: .asciz "%d: (%d, %d)\n"
+    formatPrintfADDFail: .asciz "%d: (0, 0)\n"
+    descriptor: .space 4
+    dimensiune: .space 4
+    nrAdd: .space 4
 
 .text
 
 .global main
 
-
 main:
-
      # golim vectorul <-> initializam cu 0
-    mov $1024, %ecx
-    lea v, %edi
-    rep stosb
-
+   lea v, %edi
+    mov $0, %eax
+    xor %ecx, %ecx
+et_vector:
+    cmp $1024, %ecx
+    je et_start
+    mov %eax, (%edi, %ecx, 4)
+    inc %ecx
+    jmp et_vector
+et_start:
+    xor %eax, %eax
+    xor %ebx, %ebx
+    xor %ecx, %ecx
     lea nrCerinte, %eax
     push %eax
     push $formatScanf
@@ -31,7 +37,8 @@ main:
     add $8, %esp
 
 loop:
-    cmp $0, nrCerinte
+    mov nrCerinte, %eax
+    cmp $0, %eax
     je et_exit
 
     dec nrCerinte
@@ -40,7 +47,8 @@ loop:
     push $formatScanf
     call scanf
     add $8, %esp
-
+    mov cerinta, %eax
+    cmp $1, %eax
     cmp $1, cerinta
     je et_start_add
 
@@ -50,20 +58,21 @@ et_start_add:
     push $formatScanf
     call scanf
     add $8, %esp
+    
 et_loop_add:
 
     cmp $0, nrAdd
-    jle et_exit
+    je loop
 
     dec nrAdd
-    #citire descriptor
+    # citire descriptor
     lea descriptor, %eax
     push %eax
     push $formatScanf
     call scanf
     add $8, %esp
 
-    #citire dimensiune
+    # citire dimensiune
     lea dimensiune, %eax
     push %eax
     push $formatScanf
@@ -79,8 +88,9 @@ et_loop_add:
     cmp $0, %edx
     je fara_increment
     inc %eax
+
 fara_increment:
-   mov %eax, dimensiune 
+    mov %eax, dimensiune 
     push %edi
     mov descriptor, %eax
     push %eax
@@ -103,6 +113,7 @@ et_afisare_esuata_add:
     call printf
     add $8, %esp
     jmp et_loop_add
+
 et_afisare_add:
     mov descriptor, %ecx
     mov %eax, %ebx
@@ -120,36 +131,44 @@ add:
 
     push %ebp # setez cadrul curent
     mov %esp, %ebp
-    push %ebx               #salvez registrii pe care ii folosessc
+    push %ebx               # salvez registrii pe care ii folosessc
     push %ecx
     push %edi
-    mov 8(%ebp), %ebx #dimensiune
-    mov 12(%ebp) , %eax #descriptor
+    mov 8(%ebp), %ebx # dimensiune
+    mov 12(%ebp) , %eax # descriptor
     xor %ecx, %ecx  
+    cmp $1024, %ebx
+    jg alocare_esuata
+
 gaseste_spatiu:
     cmp $1024, %ecx
-    je alocare_esuata
-
+    jge alocare_esuata
 
     mov $0, %edx
 
-verifica_spatiu:
-    cmp %ebx, %edx
-    je update_memorie
+# faza este ca am nevoie de ceva care verifica daca nu am gasit suficient spatiu ca sa bag in memeorie \
+# si sa ma duca in alocare esuata
 
+et_verifica_spatiu:
+    cmp %ebx, %edx
+    jge et_update_memorie
+
+    cmp $1024, %ecx
+    jge alocare_esuata
     mov (%edi, %ecx, 4), %esi
     cmp $0, %esi
     jne pozitia_urmatoare
 
     inc %edx
     inc %ecx
-    jmp verifica_spatiu
+    jmp et_verifica_spatiu
 
 pozitia_urmatoare:
+    mov $0, %edx
     inc %ecx
     jmp gaseste_spatiu
 
-update_memorie:
+et_update_memorie:
     sub %edx, %ecx
     mov %ebx, %edx
 
@@ -158,7 +177,7 @@ loop_update_memorie:
     je alocare_terminata
     mov %eax, (%edi, %ecx, 4)
     inc %ecx
-    dec %edx
+    sub $1, %edx
     jmp loop_update_memorie
 
 alocare_terminata:
@@ -171,7 +190,11 @@ alocare_terminata:
 
 alocare_esuata:
     mov $-1, %eax
-    jmp alocare_terminata   
+    pop %edi
+    pop %ecx
+    pop %ebx
+    pop %ebp
+    ret
 
 
 et_exit:
@@ -181,4 +204,4 @@ et_exit:
     
     movl $1, %eax
     xorl %ebx, %ebx
-    int $0x80
+    int $0x80   
