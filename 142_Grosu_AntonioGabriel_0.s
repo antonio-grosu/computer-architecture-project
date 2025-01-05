@@ -22,9 +22,6 @@
     startDescriptorMemorie: .space 4
     sfDescriptorMemorie: .space 4
     formatPrintfMemorie: .asciz "%d: (%d, %d)\n"
-    formatLaMisto:  .asciz "%d\n"
-    contorLaMisto: .space 4
-    # cerinta DELETE
 
 
 .text
@@ -32,7 +29,6 @@
 .global main
 
 main:
-     # golim vectorul <-> initializam cu 0
     lea v, %edi
     mov $0, %eax
     xor %ecx, %ecx
@@ -78,8 +74,14 @@ loop:
     cmp $3, %eax
     je et_start_delete
 
+    cmp $4, %eax
+    je et_start_defrag
+
 # ----------------- PROCEDURA AFISARE MEMORIE -----------------
 
+# ca sa afisez memoria ma folosesc de get
+
+# asa aflu start ul si endul unui descriptor nou gasit si pur si simplu le afisez
 afisare_memorie:
     push %ebp
     mov %esp, %ebp
@@ -90,14 +92,123 @@ afisare_memorie:
     xor %edx, %edx
     lea v, %edi
     mov $0, %ebx
-ret_afisare_memorie:
-    pop %edi
+    mov $0, %eax
+
+loop_memorie:
+    cmp $1024, %ecx
+    je ret_memorie
+
+    mov (%edi, %ecx, 4), %edx
+    mov %ecx, %eax
+    dec %eax
+
+    mov (%edi, %eax, 4), %ebx
+    cmp %edx, %ebx
+    jne update_descriptor
+    
+    inc %ecx
+    jmp loop_memorie
+
+
+update_descriptor:
+
+    cmp $0, %edx
+    je intoarce_loop
+    mov %edx, descriptorMemorie
+
+    push %ecx
+  
+
+    push descriptorMemorie
+    call get_inceput
+    add $4, %esp
+    
+    mov %eax, startDescriptorMemorie
+
+    push descriptorMemorie
+    call get_end
+    add $4, %esp
+
+    mov %eax, sfDescriptorMemorie
+
+    push sfDescriptorMemorie
+    push startDescriptorMemorie
+    push descriptorMemorie
+    push $formatPrintfMemorie
+    call printf
+    add $16, %esp
+
+    
+
+    pop %ecx
+    inc %ecx
+    jmp loop_memorie
+
+intoarce_loop:
+    inc %ecx
+    jmp loop_memorie
+ret_memorie:
+
+   pop %edi
     pop %ecx
     pop %ebx
     pop %ebp
     ret
 
+
+
+# ----------------- DEFRAG -----------------
+et_start_defrag:
+    push %ebp
+    mov %esp, %ebp
+    push %ebx
+    push %ecx
+    push %edi
+    xor %ecx, %ecx
+    xor %edx, %edx
+    lea v, %edi
+    mov $0, %ebx
+    mov $0, %eax
+
+parcurgere_defrag:
+    cmp $1024, %ecx
+    je terminare_defrag
+
+    mov (%edi, %ecx, 4), %eax
+    cmp $0, %eax
+    jne diferit_de_0_defrag
+
+    mov %ecx, %ebx
+    inc %ebx
+gaseste_diferit_de_0_defrag:
+    cmp $1024, %ebx
+    je terminare_defrag
+
+    mov (%edi, %ebx, 4), %eax
+    cmp $0, %eax
+    jne swap_valori
+
+    inc %ebx
+    jmp gaseste_diferit_de_0_defrag
+
+swap_valori:
+    mov %eax, (%edi, %ecx, 4)
+    mov $0, (%edi, %ebx, 4)
+
+diferit_de_0_defrag:
+inc %ecx
+jmp parcurgere_defrag
+
+terminare_defrag:
+    pop %edi
+    pop %ecx
+    pop %ebx
+    pop %ebp
+    call afisare_memorie
+    jmp loop
 # ----------------- DELETE -----------------
+
+# pun 0 acolo unde poz din vecotr este egala cu descriptorul meu
 
 et_start_delete:
     lea descriptor, %eax
@@ -413,7 +524,6 @@ alocare_esuata:
 
 
 et_exit:
-    add $4, %esp
     pushl $0
     call fflush
     popl %eax
